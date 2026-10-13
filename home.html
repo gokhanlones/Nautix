@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nautix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #0B1426;
+      --card: #0F1F3D;
+      --cyan: #00B4D8;
+      --t1:   #E8F4FD;
+      --t2:   #7A9EBC;
+      --t3:   #162840;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html, body {
+      height:100%; height:100dvh;
+      background:var(--navy); color:var(--t1);
+      font-family:'Inter',system-ui,sans-serif;
+      overflow:hidden;
+    }
+    body { display:flex; flex-direction:column; }
+
+    /* Loading */
+    #loading {
+      position:fixed; inset:0; background:var(--navy);
+      display:flex; align-items:center; justify-content:center; z-index:300;
+    }
+    .spin { width:44px; height:44px;
+      border:3px solid rgba(0,180,216,.15); border-top-color:var(--cyan);
+      border-radius:50%; animation:rot .8s linear infinite; }
+    @keyframes rot { to { transform:rotate(360deg); } }
+
+    /* Top bar */
+    .bar {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 20px; flex-shrink:0;
+      border-bottom:1px solid rgba(0,180,216,.1);
+    }
+    .logo { font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:26px; letter-spacing:4px; }
+    .logo em { color:var(--cyan); font-style:normal; }
+    .avatar { width:36px; height:36px; border-radius:50%;
+      border:2px solid var(--cyan); object-fit:cover; cursor:pointer; background:var(--card); }
+
+    /* Page */
+    #page { display:none; flex:1; flex-direction:column; align-items:center;
+      justify-content:center; padding:24px 20px 32px; gap:32px; }
+    #page.on { display:flex; }
+
+    /* ════ WHEEL ════ */
+    .wheel-outer {
+      width:100%; max-width:320px;
+      display:flex; flex-direction:column; align-items:center;
+      gap:0; position:relative; cursor:pointer;
+    }
+
+    /* The visible "window" frame */
+    .wheel-frame {
+      width:100%; height:280px;
+      position:relative; overflow:hidden;
+    }
+
+    /* 3-D perspective */
+    .drum-persp {
+      position:absolute; inset:0;
+      perspective:560px;
+      overflow:hidden;
+    }
+
+    /* Aggressive fade — only center slot visible */
+    .drum-persp::before, .drum-persp::after {
+      content:''; position:absolute; left:0; right:0; z-index:10; pointer-events:none;
+    }
+    .drum-persp::before {
+      top:0; height:40%;
+      background:linear-gradient(to bottom, var(--navy) 20%, rgba(11,20,38,.0) 100%);
+    }
+    .drum-persp::after {
+      bottom:0; height:40%;
+      background:linear-gradient(to top, var(--navy) 20%, rgba(11,20,38,.0) 100%);
+    }
+
+    /* Center highlight */
+    .slot-window {
+      position:absolute; left:0; right:0;
+      top:50%; transform:translateY(-50%);
+      height:64px;
+      border-top:1px solid rgba(0,180,216,.5);
+      border-bottom:1px solid rgba(0,180,216,.5);
+      background:rgba(0,180,216,.04);
+      z-index:5; pointer-events:none;
+    }
+
+    /* 3-D drum, anchored at center */
+    .drum-3d {
+      position:absolute; width:100%; height:0; top:50%;
+      transform-style:preserve-3d;
+      will-change:transform;
+    }
+
+    /* Each slot */
+    .slot {
+      position:absolute; width:100%; height:64px;
+      top:-32px;               /* centered at drum origin */
+      display:flex; align-items:center; justify-content:center;
+      overflow:hidden;         /* no text overflow */
+      backface-visibility:hidden; -webkit-backface-visibility:hidden;
+      pointer-events:none;
+    }
+    .slot-inner {
+      display:flex; align-items:baseline; gap:6px;
+      font-family:'Barlow Condensed',sans-serif;
+      font-weight:900; font-size:52px; line-height:1;
+      color:var(--t3);
+      transition:color .1s;
+      white-space:nowrap;
+    }
+    .slot.sel .slot-inner { color:var(--t1); }
+    .slot-inner .u {
+      font-size:18px; font-weight:700; letter-spacing:1px;
+      color:var(--t2); margin-bottom:6px;
+    }
+    .slot.sel .slot-inner .u { color:var(--cyan); }
+
+    /* Tap hint */
+    .tap-hint {
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:12px; letter-spacing:3px; color:var(--t2);
+      margin-top:14px; text-align:center;
+      transition:opacity .4s;
+    }
+    .tap-hint.gone { opacity:0; pointer-events:none; }
+
+    /* Buttons */
+    .btn-spin {
+      width:100%; max-width:320px; padding:20px;
+      background:var(--cyan); border:none; border-radius:6px;
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:24px; font-weight:800; letter-spacing:3px; color:#08111E;
+      cursor:pointer; transition:transform .1s, opacity .2s;
+    }
+    .btn-spin:active { transform:scale(.97); }
+    .btn-spin:disabled { opacity:.5; cursor:not-allowed; }
+
+    .btn-play {
+      width:100%; max-width:320px; padding:20px;
+      background:transparent;
+      border:2px solid var(--cyan);
+      border-radius:6px;
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:22px; font-weight:800; letter-spacing:2px; color:var(--cyan);
+      cursor:pointer; transition:background .15s, transform .1s;
+    }
+    .btn-play:active { transform:scale(.97); background:rgba(0,180,216,.08); }
+  </style>
+</head>
+<body>
+
+<div id="loading"><div class="spin"></div></div>
+
+<div class="bar">
+  <div class="logo">NAUT<em>I</em>X</div>
+  <img class="avatar" id="av" src="" alt="" onclick="bye()">
+</div>
+
+<div id="page">
+
+  <!-- Wheel -->
+  <div class="wheel-outer" onclick="onWheelTap()">
+    <div class="wheel-frame">
+      <div class="drum-persp">
+        <div class="drum-3d" id="drum"></div>
+      </div>
+      <div class="slot-window"></div>
+    </div>
+    <div class="tap-hint" id="hint">TAP TO SPIN</div>
+  </div>
+
+  <!-- Spin button -->
+  <button class="btn-spin" id="btn-spin" onclick="doSpin()">⟳ &nbsp; SPIN</button>
+
+  <!-- Play button (appears after spin) -->
+  <button class="btn-play" id="btn-play" style="display:none" onclick="play()">▶ &nbsp; PLAY</button>
+
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:            "AIzaSyCMxTMv0yWJHjbYndJpGiYnF6y9W19mpC0",
+  authDomain:        "nautix-3d62c.firebaseapp.com",
+  projectId:         "nautix-3d62c",
+  storageBucket:     "nautix-3d62c.firebasestorage.app",
+  messagingSenderId: "139539390330",
+  appId:             "1:139539390330:web:1239b101edb0a4ab4d40c3"
+});
+const auth = firebase.auth();
+
+auth.onAuthStateChanged(u => {
+  document.getElementById('loading').style.display = 'none';
+  if (!u) { location.replace('index.html'); return; }
+  if (u.photoURL) document.getElementById('av').src = u.photoURL;
+  document.getElementById('page').classList.add('on');
+});
+
+function bye() {
+  if (confirm('Sign out?')) auth.signOut().then(() => location.replace('index.html'));
+}
+
+// ════════════════════════
+//  WHEEL ENGINE
+// ════════════════════════
+const VALS = [5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100];
+const N    = VALS.length;         // 20
+const DEG  = 360 / N;            // 18° per slot
+const H    = 64;                  // slot height on drum (px)
+const R    = Math.round((H * N) / (2 * Math.PI)); // ≈ 204px
+
+let angle    = 0;
+let raf      = null;
+let spinning = false;
+
+// Build drum
+const drumEl = document.getElementById('drum');
+VALS.forEach((v, i) => {
+  const el = document.createElement('div');
+  el.className = 'slot';
+  el.id = `s${i}`;
+  el.innerHTML = `<div class="slot-inner">${v}<span class="u">PTS</span></div>`;
+  el.style.transform = `rotateX(${i * DEG}deg) translateZ(${R}px)`;
+  drumEl.appendChild(el);
+});
+
+function selIdx() {
+  return (Math.round(angle / DEG) % N + N) % N;
+}
+
+function setAngle(a) {
+  angle = a;
+  drumEl.style.transform = `rotateX(${-a}deg)`;
+  const idx = selIdx();
+  VALS.forEach((_, i) => {
+    document.getElementById(`s${i}`)?.classList.toggle('sel', i === idx);
+  });
+}
+
+// Random spin to a random slot
+function doSpin() {
+  if (spinning) return;
+  spinning = true;
+
+  // Hide hint
+  document.getElementById('hint').classList.add('gone');
+  document.getElementById('btn-play').style.display = 'none';
+  document.getElementById('btn-spin').disabled = true;
+
+  // Pick a random target slot
+  const targetIdx = Math.floor(Math.random() * N);
+  // Extra rotations: 4-7 full spins
+  const extraRots = (Math.floor(Math.random() * 4) + 4) * 360;
+  // Move to targetIdx from current
+  const curIdx = selIdx();
+  let slotsAhead = targetIdx - curIdx;
+  if (slotsAhead <= 0) slotsAhead += N;
+  const targetAngle = angle + extraRots + slotsAhead * DEG;
+
+  const duration = 2800 + Math.random() * 800; // 2.8-3.6s
+  const startA   = angle;
+  const delta    = targetAngle - startA;
+  const t0       = performance.now();
+
+  cancelAnimationFrame(raf);
+  (function frame(now) {
+    const p    = Math.min(1, (now - t0) / duration);
+    const ease = 1 - Math.pow(1 - p, 4); // quartic ease-out (fast→slow)
+    setAngle(startA + delta * ease);
+    if (p < 1) {
+      raf = requestAnimationFrame(frame);
+    } else {
+      // Snap exact
+      setAngle(Math.round(angle / DEG) * DEG);
+      spinning = false;
+      document.getElementById('btn-spin').disabled = false;
+      const score = VALS[selIdx()];
+      const playBtn = document.getElementById('btn-play');
+      playBtn.textContent = `▶  PLAY FOR ${score} PTS`;
+      playBtn.style.display = 'block';
+    }
+  })(performance.now());
+}
+
+function onWheelTap() { doSpin(); }
+
+function play() {
+  const pts = VALS[selIdx()];
+  location.href = `game.html?points=${pts}`;
+}
+
+// Init at random slot so it doesn't always start at 5
+const startIdx = Math.floor(Math.random() * N);
+setAngle(startIdx * DEG);
+</script>
+</body>
+</html>
