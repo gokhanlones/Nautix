@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nautix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy:  #0B1426;
+      --card:  #0F1F3D;
+      --line:  #132040;
+      --cyan:  #00B4D8;
+      --green: #06D6A0;
+      --red:   #EF233C;
+      --t1:    #E8F4FD;
+      --t2:    #7A9EBC;
+      --t3:    #2A4560;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html, body {
+      height:100%; height:100dvh;
+      background:var(--navy); color:var(--t1);
+      font-family:'Inter',system-ui,sans-serif;
+      overflow:hidden; display:flex; flex-direction:column;
+    }
+
+    /* Loading */
+    #loading {
+      position:fixed; inset:0; background:var(--navy);
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center; gap:16px; z-index:300;
+    }
+    .spin { width:40px; height:40px;
+      border:3px solid rgba(0,180,216,.15); border-top-color:var(--cyan);
+      border-radius:50%; animation:rot .8s linear infinite; }
+    @keyframes rot { to { transform:rotate(360deg); } }
+    #loading p { font-family:'Barlow Condensed',sans-serif;
+      font-size:13px; letter-spacing:3px; color:var(--t2); }
+
+    /* Top bar */
+    .bar {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:12px 20px; flex-shrink:0;
+      border-bottom:1px solid rgba(0,180,216,.1);
+    }
+    .logo { font-family:'Barlow Condensed',sans-serif;
+      font-weight:800; font-size:22px; letter-spacing:4px; }
+    .logo em { color:var(--cyan); font-style:normal; }
+    .score-wrap { display:flex; align-items:center; gap:6px; }
+    .score-icon { font-size:16px; }
+    .score-val { font-family:'Barlow Condensed',sans-serif;
+      font-weight:800; font-size:22px; letter-spacing:1px; color:var(--cyan); }
+
+    /* Game area */
+    #game { display:none; flex:1; flex-direction:column;
+      padding:20px 20px 28px; overflow-y:auto; gap:16px; }
+    #game.on { display:flex; }
+
+    /* Points badge */
+    .pts-badge {
+      display:flex; align-items:center; justify-content:center; gap:8px;
+      flex-shrink:0;
+    }
+    .pts-num {
+      font-family:'Barlow Condensed',sans-serif;
+      font-weight:900; font-size:42px; color:var(--cyan); line-height:1;
+    }
+    .pts-lbl {
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:14px; letter-spacing:3px; color:var(--t2);
+      margin-top:4px;
+    }
+
+    /* Question */
+    .q-box {
+      background:var(--card);
+      border:1px solid rgba(0,180,216,.08);
+      border-radius:10px; padding:20px;
+      flex-shrink:0;
+    }
+    .q-tag {
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:11px; letter-spacing:3px; color:var(--cyan);
+      margin-bottom:10px;
+    }
+    .q-text {
+      font-size:17px; line-height:1.55;
+      font-weight:500; color:var(--t1);
+    }
+
+    /* Options */
+    .options { display:flex; flex-direction:column; gap:10px; flex-shrink:0; }
+
+    .opt {
+      display:flex; align-items:center; gap:14px;
+      background:var(--line);
+      border:1.5px solid rgba(255,255,255,.05);
+      border-radius:8px; padding:16px 18px;
+      cursor:pointer;
+      transition:background .12s, border-color .12s, transform .08s;
+      -webkit-user-select:none; user-select:none;
+    }
+    .opt:active { transform:scale(.98); }
+
+    .opt-key {
+      font-family:'Barlow Condensed',sans-serif;
+      font-weight:800; font-size:20px;
+      color:var(--t2); flex-shrink:0; width:22px;
+      transition:color .12s;
+    }
+    .opt-text {
+      font-size:15px; line-height:1.4;
+      color:var(--t1); flex:1;
+    }
+
+    /* States */
+    .opt.correct {
+      background:rgba(6,214,160,.12);
+      border-color:var(--green);
+    }
+    .opt.correct .opt-key { color:var(--green); }
+
+    .opt.wrong {
+      background:rgba(239,35,60,.1);
+      border-color:var(--red);
+    }
+    .opt.wrong .opt-key { color:var(--red); }
+
+    .opt.disabled { pointer-events:none; opacity:.55; }
+
+    /* Result overlay */
+    #result-overlay {
+      position:fixed; inset:0; z-index:100;
+      display:flex; align-items:center; justify-content:center;
+      pointer-events:none;
+      opacity:0; transition:opacity .2s;
+    }
+    #result-overlay.show { opacity:1; }
+
+    .result-badge {
+      font-family:'Barlow Condensed',sans-serif;
+      font-weight:900; font-size:88px; line-height:1;
+      text-shadow:0 4px 32px rgba(0,0,0,.6);
+      animation:pop .25s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes pop {
+      from { transform:scale(.5); opacity:0; }
+      to   { transform:scale(1);  opacity:1; }
+    }
+    .result-badge.plus { color:var(--green); }
+    .result-badge.minus { color:var(--red); }
+
+    /* Error state */
+    #error-state {
+      display:none; flex:1; flex-direction:column;
+      align-items:center; justify-content:center; gap:20px; padding:32px;
+      text-align:center;
+    }
+    #error-state.on { display:flex; }
+    #error-state p { color:var(--t2); font-size:15px; line-height:1.6; }
+    .btn-back {
+      background:var(--cyan); color:#08111E;
+      border:none; border-radius:6px;
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:20px; font-weight:800; letter-spacing:2px;
+      padding:16px 36px; cursor:pointer;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="spin"></div>
+  <p>LOADING QUESTION</p>
+</div>
+
+<!-- Result overlay -->
+<div id="result-overlay">
+  <div class="result-badge" id="result-badge"></div>
+</div>
+
+<!-- Top bar -->
+<div class="bar">
+  <div class="logo">NAUT<em>I</em>X</div>
+  <div class="score-wrap">
+    <span class="score-icon">🏆</span>
+    <span class="score-val" id="score-val">0</span>
+  </div>
+</div>
+
+<!-- Game -->
+<div id="game">
+  <div class="pts-badge">
+    <div>
+      <div class="pts-num" id="pts-num">0</div>
+      <div class="pts-lbl">POINTS AT STAKE</div>
+    </div>
+  </div>
+
+  <div class="q-box">
+    <div class="q-tag" id="q-tag">NAVIGATION</div>
+    <div class="q-text" id="q-text"></div>
+  </div>
+
+  <div class="options" id="options"></div>
+</div>
+
+<!-- Error -->
+<div id="error-state">
+  <p id="error-msg">No questions found.<br>Please upload questions first.</p>
+  <button class="btn-back" onclick="goBack()">← BACK</button>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:            "AIzaSyCMxTMv0yWJHjbYndJpGiYnF6y9W19mpC0",
+  authDomain:        "nautix-3d62c.firebaseapp.com",
+  projectId:         "nautix-3d62c",
+  storageBucket:     "nautix-3d62c.firebasestorage.app",
+  messagingSenderId: "139539390330",
+  appId:             "1:139539390330:web:1239b101edb0a4ab4d40c3"
+});
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+// ── Params ──
+const params    = new URLSearchParams(location.search);
+const POINTS    = parseInt(params.get('points')) || 10;
+const CATEGORY  = params.get('category') || 'navigation';
+
+// ── Score ──
+let totalScore = parseInt(localStorage.getItem('nautix_score') || '0');
+function saveScore(n) {
+  totalScore = Math.max(0, totalScore + n);
+  localStorage.setItem('nautix_score', totalScore);
+  document.getElementById('score-val').textContent =
+    totalScore >= 1000 ? (totalScore/1000).toFixed(1)+'K' : totalScore;
+}
+
+// ── Auth ──
+auth.onAuthStateChanged(async (user) => {
+  if (!user) { location.replace('index.html'); return; }
+  document.getElementById('pts-num').textContent  = POINTS;
+  document.getElementById('score-val').textContent =
+    totalScore >= 1000 ? (totalScore/1000).toFixed(1)+'K' : totalScore;
+  await loadQuestion();
+});
+
+// ── Load question ──
+async function loadQuestion() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('game').classList.remove('on');
+  document.getElementById('error-state').classList.remove('on');
+
+  try {
+    // Fetch verified questions for category
+    const snap = await db.collection('questions')
+      .where('category', '==', CATEGORY)
+      .where('verified', '==', true)
+      .get();
+
+    if (snap.empty) throw new Error('No questions in this category yet.');
+
+    const all = snap.docs.map(d => d.data());
+
+    // Avoid recently asked questions
+    const asked = JSON.parse(sessionStorage.getItem('nx_asked') || '[]');
+    let pool = all.filter(q => !asked.includes(q.id));
+    if (pool.length === 0) {
+      sessionStorage.setItem('nx_asked', '[]');
+      pool = all;
+    }
+
+    // Pick random
+    const q = pool[Math.floor(Math.random() * pool.length)];
+    const newAsked = [...asked, q.id].slice(-15);
+    sessionStorage.setItem('nx_asked', JSON.stringify(newAsked));
+
+    showQuestion(q);
+
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-msg').textContent = e.message;
+    document.getElementById('error-state').classList.add('on');
+  }
+}
+
+// ── Show question ──
+function showQuestion(q) {
+  // Category tag
+  const tagMap = {
+    navigation:'NAVIGATION', engineering:'ENGINEERING',
+    electrical:'ELECTRICAL', safety:'SAFETY', medical:'MEDICAL', psc:'PSC'
+  };
+  document.getElementById('q-tag').textContent =
+    (tagMap[q.category] || q.category.toUpperCase());
+
+  // Question text
+  document.getElementById('q-text').textContent = q.question;
+
+  // Options
+  const optEl = document.getElementById('options');
+  optEl.innerHTML = '';
+  const keys = ['A','B','C','D'];
+  keys.forEach(key => {
+    if (!q.options[key]) return;
+    const btn = document.createElement('div');
+    btn.className = 'opt';
+    btn.id = `opt-${key}`;
+    btn.innerHTML = `
+      <span class="opt-key">${key}</span>
+      <span class="opt-text">${q.options[key]}</span>`;
+    btn.onclick = () => answer(key, q.correctAnswer, POINTS);
+    optEl.appendChild(btn);
+  });
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('game').classList.add('on');
+}
+
+// ── Handle answer ──
+function answer(chosen, correct, pts) {
+  // Disable all options
+  document.querySelectorAll('.opt').forEach(o => o.classList.add('disabled'));
+
+  const isRight = chosen === correct;
+
+  // Highlight chosen
+  const chosenEl = document.getElementById(`opt-${chosen}`);
+  chosenEl.classList.add(isRight ? 'correct' : 'wrong');
+  chosenEl.classList.remove('disabled');
+
+  // Always show correct answer
+  if (!isRight) {
+    const correctEl = document.getElementById(`opt-${correct}`);
+    if (correctEl) {
+      correctEl.classList.add('correct');
+      correctEl.classList.remove('disabled');
+    }
+  }
+
+  // Score change
+  const delta = isRight ? pts : -pts;
+  saveScore(delta);
+
+  // Show result badge
+  const overlay = document.getElementById('result-overlay');
+  const badge   = document.getElementById('result-badge');
+  badge.textContent = isRight ? `+${pts}` : `-${pts}`;
+  badge.className   = `result-badge ${isRight ? 'plus' : 'minus'}`;
+  overlay.classList.add('show');
+
+  // After 1.8s → back to slot
+  setTimeout(() => {
+    overlay.classList.remove('show');
+    location.replace('home.html');
+  }, 1800);
+}
+
+function goBack() { location.replace('home.html'); }
+</script>
+</body>
+</html>
