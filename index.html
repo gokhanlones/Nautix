@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nautix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy:      #0B1426;
+      --navy-mid:  #0F1F3D;
+      --navy-card: #132040;
+      --cyan:      #00B4D8;
+      --text-1:    #E8F4FD;
+      --text-2:    #7A9EBC;
+      --text-3:    #3D5A73;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: var(--navy);
+      color: var(--text-1);
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    [hidden] { display: none !important; }
+
+    /* ────── LOADING ────── */
+    #loading {
+      position: fixed; inset: 0;
+      background: var(--navy);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 200;
+    }
+    .spinner {
+      width: 44px; height: 44px;
+      border: 3px solid rgba(0,180,216,.15);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ────── LOGIN SCREEN ────── */
+    #screen-login {
+      min-height: 100vh; min-height: 100dvh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 48px 24px 32px;
+      position: relative; overflow: hidden;
+    }
+
+    /* Nautical chart grid */
+    #screen-login::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(0,180,216,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,180,216,.04) 1px, transparent 1px);
+      background-size: 44px 44px;
+      pointer-events: none;
+    }
+
+    /* Radial glow at center */
+    #screen-login::after {
+      content: '';
+      position: absolute;
+      top: 30%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 320px; height: 320px;
+      background: radial-gradient(circle, rgba(0,180,216,.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .login-logo {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 80px;
+      letter-spacing: 10px;
+      color: var(--text-1);
+      line-height: 1;
+      position: relative;
+      z-index: 1;
+    }
+    .login-logo .accent { color: var(--cyan); }
+
+    .login-rule {
+      width: 260px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      margin: 18px 0 14px;
+      position: relative; z-index: 1;
+    }
+
+    .login-tagline {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 400;
+      font-size: 15px;
+      letter-spacing: 4px;
+      color: var(--text-2);
+      text-align: center;
+      margin-bottom: 72px;
+      position: relative; z-index: 1;
+    }
+
+    .btn-google {
+      display: flex; align-items: center; gap: 14px;
+      background: var(--text-1);
+      color: #1a1a1a;
+      border: none; border-radius: 4px;
+      padding: 17px 32px;
+      font-family: 'Inter', sans-serif;
+      font-size: 16px; font-weight: 600;
+      cursor: pointer;
+      width: 100%; max-width: 300px;
+      justify-content: center;
+      position: relative; z-index: 1;
+      transition: transform .1s, box-shadow .1s;
+    }
+    .btn-google:active {
+      transform: scale(.97);
+      box-shadow: 0 0 0 3px rgba(0,180,216,.3);
+    }
+    .btn-google svg { width: 22px; height: 22px; flex-shrink: 0; }
+
+    .login-footer {
+      position: absolute; bottom: 28px;
+      font-size: 12px; color: var(--text-3);
+      text-align: center; line-height: 1.7;
+      z-index: 1;
+    }
+
+    /* ────── HOME SCREEN ────── */
+    #screen-home {
+      min-height: 100vh; min-height: 100dvh;
+      display: flex; flex-direction: column;
+    }
+
+    .top-bar {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid rgba(0,180,216,.1);
+      background: rgba(11,20,38,.8);
+      backdrop-filter: blur(8px);
+      position: sticky; top: 0; z-index: 10;
+    }
+
+    .top-bar-logo {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: 26px;
+      letter-spacing: 4px; color: var(--text-1);
+    }
+    .top-bar-logo .accent { color: var(--cyan); }
+
+    .user-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--cyan);
+      object-fit: cover; cursor: pointer;
+      background: var(--navy-mid);
+    }
+    .avatar-placeholder {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--cyan);
+      background: var(--navy-mid);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; cursor: pointer;
+    }
+
+    .home-body {
+      flex: 1;
+      padding: 28px 20px 40px;
+      overflow-y: auto;
+    }
+
+    .greeting {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px; letter-spacing: 3px;
+      color: var(--text-2); margin-bottom: 4px;
+    }
+
+    .select-heading {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 34px; font-weight: 700;
+      color: var(--text-1); margin-bottom: 28px;
+      line-height: 1;
+    }
+
+    /* Category grid */
+    .category-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .cat-card {
+      background: var(--navy-card);
+      border-radius: 8px;
+      padding: 18px 14px;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,.04);
+      position: relative; overflow: hidden;
+      transition: border-color .15s, transform .1s;
+    }
+
+    /* Color bar top */
+    .cat-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--cat-color);
+    }
+
+    .cat-card:active {
+      transform: scale(.96);
+      border-color: var(--cat-color);
+    }
+
+    .cat-icon {
+      font-size: 30px;
+      display: block; margin-bottom: 10px;
+    }
+
+    .cat-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 20px; font-weight: 700;
+      color: var(--text-1); margin-bottom: 3px;
+    }
+
+    .cat-desc {
+      font-size: 11px; color: var(--text-2);
+      line-height: 1.4;
+    }
+
+    .cat-badge {
+      position: absolute; top: 10px; right: 10px;
+      font-size: 10px; font-weight: 600;
+      color: var(--cat-color);
+      background: rgba(255,255,255,.06);
+      padding: 2px 6px; border-radius: 10px;
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px; margin-bottom: 28px;
+    }
+
+    .stat-box {
+      background: var(--navy-card);
+      border-radius: 8px; padding: 14px 12px;
+      text-align: center;
+      border: 1px solid rgba(0,180,216,.08);
+    }
+
+    .stat-value {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 28px; font-weight: 700;
+      color: var(--cyan); line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 10px; color: var(--text-2);
+      margin-top: 3px; letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="spinner"></div>
+</div>
+
+<!-- ── LOGIN SCREEN ── -->
+<div id="screen-login" hidden>
+  <div class="login-logo">NAUT<span class="accent">I</span>X</div>
+  <div class="login-rule"></div>
+  <div class="login-tagline">KNOW THE SEA. KNOW THE CODE.</div>
+
+  <button class="btn-google" onclick="signIn()">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+    Sign in with Google
+  </button>
+
+  <div class="login-footer">
+    For deck officers, engineers &amp; ETOs worldwide<br>
+    Based on IMO conventions &amp; USCG standards
+  </div>
+</div>
+
+<!-- ── HOME SCREEN ── -->
+<div id="screen-home" hidden>
+  <div class="top-bar">
+    <div class="top-bar-logo">NAUT<span class="accent">I</span>X</div>
+    <div id="user-btn" class="avatar-placeholder" onclick="showUserMenu()">👤</div>
+  </div>
+
+  <div class="home-body">
+    <div class="greeting" id="greeting">WELCOME BACK</div>
+    <div class="select-heading">Choose<br>a Category</div>
+
+    <!-- Stats -->
+    <div class="stats-bar">
+      <div class="stat-box">
+        <div class="stat-value" id="stat-played">0</div>
+        <div class="stat-label">GAMES</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="stat-score">0</div>
+        <div class="stat-label">HIGH SCORE</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="stat-acc">—</div>
+        <div class="stat-label">ACCURACY</div>
+      </div>
+    </div>
+
+    <!-- Categories -->
+    <div class="category-grid">
+      <div class="cat-card" style="--cat-color:#00B4D8" onclick="startGame('navigation')">
+        <span class="cat-icon">🧭</span>
+        <div class="cat-name">Navigation</div>
+        <div class="cat-desc">COLREG, chartwork, celestial nav</div>
+      </div>
+
+      <div class="cat-card" style="--cat-color:#F4A261" onclick="startGame('engineering')">
+        <span class="cat-icon">⚙️</span>
+        <div class="cat-name">Engineering</div>
+        <div class="cat-desc">Diesel engines, pumps, systems</div>
+      </div>
+
+      <div class="cat-card" style="--cat-color:#FFD166" onclick="startGame('electrical')">
+        <span class="cat-icon">⚡</span>
+        <div class="cat-name">Electrical</div>
+        <div class="cat-desc">Power systems, automation, ETO</div>
+      </div>
+
+      <div class="cat-card" style="--cat-color:#EF233C" onclick="startGame('safety')">
+        <span class="cat-icon">🛡️</span>
+        <div class="cat-name">Safety</div>
+        <div class="cat-desc">SOLAS, MARPOL, ISM, fire</div>
+      </div>
+
+      <div class="cat-card" style="--cat-color:#06D6A0" onclick="startGame('medical')">
+        <span class="cat-icon">🏥</span>
+        <div class="cat-name">Medical</div>
+        <div class="cat-desc">First aid, shipboard medicine</div>
+      </div>
+
+      <div class="cat-card" style="--cat-color:#9B5DE5" onclick="startGame('psc')">
+        <span class="cat-icon">🛂</span>
+        <div class="cat-name">PSC</div>
+        <div class="cat-desc">Port State Control, MOU, Paris</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey:            "AIzaSyCMxTMv0yWJHjbYndJpGiYnF6y9W19mpC0",
+    authDomain:        "nautix-3d62c.firebaseapp.com",
+    projectId:         "nautix-3d62c",
+    storageBucket:     "nautix-3d62c.firebasestorage.app",
+    messagingSenderId: "139539390330",
+    appId:             "1:139539390330:web:1239b101edb0a4ab4d40c3"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const auth     = firebase.auth();
+  const db       = firebase.firestore();
+  const provider = new firebase.auth.GoogleAuthProvider();
+
+  // ── Auth state ──
+  auth.onAuthStateChanged(async (user) => {
+    document.getElementById('loading').hidden = true;
+
+    if (user) {
+      showHome(user);
+      await syncUser(user);
+      await loadStats(user.uid);
+    } else {
+      document.getElementById('screen-login').hidden = false;
+      document.getElementById('screen-home').hidden  = true;
+    }
+  });
+
+  // Handle redirect result
+  auth.getRedirectResult().catch(console.error);
+
+  // ── Show home ──
+  function showHome(user) {
+    document.getElementById('screen-login').hidden = true;
+    document.getElementById('screen-home').hidden  = false;
+
+    const name = user.displayName?.split(' ')[0] || 'Officer';
+    document.getElementById('greeting').textContent = `WELCOME, ${name.toUpperCase()}`;
+
+    const btn = document.getElementById('user-btn');
+    if (user.photoURL) {
+      btn.outerHTML = `<img class="user-avatar" id="user-btn"
+        src="${user.photoURL}" alt="Profile" onclick="showUserMenu()">`;
+    }
+  }
+
+  // ── Sync user doc ──
+  async function syncUser(user) {
+    try {
+      await db.collection('users').doc(user.uid).set({
+        uid:         user.uid,
+        displayName: user.displayName,
+        email:       user.email,
+        photoURL:    user.photoURL,
+        lastSeen:    firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    } catch(e) { console.warn('syncUser:', e); }
+  }
+
+  // ── Load stats ──
+  async function loadStats(uid) {
+    try {
+      const doc = await db.collection('users').doc(uid).get();
+      if (!doc.exists) return;
+      const data  = doc.data();
+      const stats = data.stats || {};
+
+      let totalPlayed = 0, totalCorrect = 0, totalAsked = 0, highScore = 0;
+      Object.values(stats).forEach(s => {
+        totalPlayed  += s.played  || 0;
+        totalCorrect += s.correct || 0;
+        totalAsked   += (s.played || 0) * 15;
+        if ((s.highScore || 0) > highScore) highScore = s.highScore;
+      });
+
+      document.getElementById('stat-played').textContent = totalPlayed;
+      document.getElementById('stat-score').textContent  =
+        highScore >= 1000 ? (highScore/1000).toFixed(0)+'K' : highScore;
+
+      if (totalAsked > 0) {
+        const acc = Math.round((totalCorrect / totalAsked) * 100);
+        document.getElementById('stat-acc').textContent = acc + '%';
+      }
+    } catch(e) { console.warn('loadStats:', e); }
+  }
+
+  // ── Sign in ──
+  function signIn() {
+    auth.signInWithRedirect(provider);
+  }
+
+  // ── Start game ──
+  function startGame(category) {
+    // İleride: window.location.href = `game.html?category=${category}`;
+    alert(`"${category}" coming soon!\n\nGame screen will open here.`);
+  }
+
+  // ── User menu ──
+  function showUserMenu() {
+    const user = auth.currentUser;
+    if (!user) return;
+    if (confirm(`Signed in as:\n${user.displayName}\n${user.email}\n\nSign out?`)) {
+      auth.signOut();
+    }
+  }
+</script>
+
+</body>
+</html>
