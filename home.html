@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nautix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy:      #0B1426;
+      --navy-card: #132040;
+      --cyan:      #00B4D8;
+      --text-1:    #E8F4FD;
+      --text-2:    #7A9EBC;
+      --text-3:    #1E3A52;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+    body {
+      background:var(--navy); color:var(--text-1);
+      font-family:'Inter',system-ui,sans-serif;
+      height:100vh; height:100dvh;
+      display:flex; flex-direction:column;
+      overflow:hidden;
+    }
+
+    /* Loading */
+    #loading {
+      position:fixed; inset:0; background:var(--navy);
+      display:flex; align-items:center; justify-content:center;
+      z-index:300;
+    }
+    .spinner {
+      width:44px; height:44px;
+      border:3px solid rgba(0,180,216,.15);
+      border-top-color:var(--cyan);
+      border-radius:50%;
+      animation:spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* Top bar */
+    .top-bar {
+      display:flex; align-items:center;
+      justify-content:space-between;
+      padding:14px 20px; flex-shrink:0;
+      border-bottom:1px solid rgba(0,180,216,.1);
+    }
+    .top-bar-logo {
+      font-family:'Barlow Condensed',sans-serif;
+      font-weight:800; font-size:26px;
+      letter-spacing:4px;
+    }
+    .top-bar-logo .accent { color:var(--cyan); }
+    .user-avatar {
+      width:36px; height:36px; border-radius:50%;
+      border:2px solid var(--cyan);
+      object-fit:cover; cursor:pointer;
+      background:var(--navy-card);
+    }
+
+    /* Main content */
+    #main {
+      display:none; flex:1;
+      flex-direction:column; overflow:hidden;
+    }
+    #main.visible { display:flex; }
+
+    /* Score + greeting */
+    .header-section {
+      text-align:center;
+      padding:20px 20px 0;
+      flex-shrink:0;
+    }
+    .greeting {
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:12px; letter-spacing:3px;
+      color:var(--text-2); margin-bottom:6px;
+    }
+    .score-label {
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:14px; letter-spacing:2px;
+      color:var(--text-2); margin-bottom:2px;
+    }
+    .score-big {
+      font-family:'Barlow Condensed',sans-serif;
+      font-weight:900; font-size:88px;
+      color:var(--cyan); line-height:1;
+      text-shadow:0 0 40px rgba(0,180,216,.4);
+    }
+    .score-pts {
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:20px; letter-spacing:3px;
+      color:var(--text-2); font-weight:600;
+    }
+    .diff-label {
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:16px; letter-spacing:4px;
+      font-weight:700; margin-top:4px;
+      transition:color .2s;
+    }
+
+    /* ═══ WHEEL ═══ */
+    .wheel-section {
+      flex:1; display:flex;
+      align-items:center; justify-content:center;
+      position:relative; overflow:hidden;
+      touch-action:none;
+    }
+
+    .wheel-outer {
+      width:100%; max-width:340px;
+      height:260px;
+      position:relative;
+      cursor:grab;
+      user-select:none;
+    }
+    .wheel-outer:active { cursor:grabbing; }
+
+    /* Perspective container */
+    .wheel-perspective {
+      position:absolute; inset:0;
+      perspective:260px;
+      overflow:hidden;
+    }
+
+    /* Fade top & bottom */
+    .wheel-perspective::before,
+    .wheel-perspective::after {
+      content:''; position:absolute;
+      left:0; right:0; z-index:10;
+      pointer-events:none;
+    }
+    .wheel-perspective::before {
+      top:0; height:42%;
+      background:linear-gradient(to bottom, var(--navy) 0%, transparent 100%);
+    }
+    .wheel-perspective::after {
+      bottom:0; height:42%;
+      background:linear-gradient(to top, var(--navy) 0%, transparent 100%);
+    }
+
+    /* Center selection bar */
+    .wheel-bar {
+      position:absolute; left:20px; right:20px;
+      top:50%; transform:translateY(-50%);
+      height:56px;
+      border-top:1px solid rgba(0,180,216,.5);
+      border-bottom:1px solid rgba(0,180,216,.5);
+      background:rgba(0,180,216,.05);
+      border-radius:4px;
+      z-index:5; pointer-events:none;
+    }
+
+    /* The 3D drum */
+    .wheel-drum {
+      width:100%; height:260px;
+      position:relative;
+      transform-style:preserve-3d;
+      will-change:transform;
+    }
+
+    .wheel-item {
+      position:absolute;
+      width:100%; height:56px;
+      top:calc(50% - 28px);
+      display:flex; align-items:center; justify-content:center;
+      font-family:'Barlow Condensed',sans-serif;
+      font-weight:700; font-size:36px;
+      color:var(--text-3);
+      backface-visibility:hidden;
+      -webkit-backface-visibility:hidden;
+      transition:color .15s;
+      pointer-events:none;
+      letter-spacing:2px;
+    }
+    .wheel-item.active {
+      color:var(--text-1);
+      font-size:44px;
+    }
+
+    .wheel-item .pts {
+      font-size:16px; margin-left:4px;
+      letter-spacing:1px;
+      align-self:flex-end; margin-bottom:8px;
+    }
+
+    /* Hint */
+    .swipe-hint {
+      position:absolute; bottom:12px; left:0; right:0;
+      text-align:center;
+      font-size:11px; letter-spacing:2px;
+      color:var(--text-2);
+      opacity:.7;
+    }
+    .swipe-hint.hidden { opacity:0; }
+
+    /* Play button */
+    .play-section {
+      padding:16px 20px 24px; flex-shrink:0;
+    }
+    .btn-play {
+      width:100%; padding:18px;
+      background:var(--cyan);
+      border:none; border-radius:6px;
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:22px; font-weight:800;
+      letter-spacing:3px; color:#0B1426;
+      cursor:pointer;
+      transition:transform .1s, box-shadow .1s;
+      display:flex; align-items:center;
+      justify-content:center; gap:12px;
+    }
+    .btn-play:active {
+      transform:scale(.97);
+      box-shadow:0 0 0 4px rgba(0,180,216,.2);
+    }
+
+    /* ═══ CATEGORY BOTTOM SHEET ═══ */
+    .sheet-overlay {
+      position:fixed; inset:0;
+      background:rgba(0,0,0,.6);
+      z-index:100;
+      opacity:0; pointer-events:none;
+      transition:opacity .3s;
+    }
+    .sheet-overlay.open {
+      opacity:1; pointer-events:all;
+    }
+
+    .sheet {
+      position:fixed; bottom:0; left:0; right:0;
+      background:#0F1F3D;
+      border-radius:20px 20px 0 0;
+      z-index:101;
+      transform:translateY(100%);
+      transition:transform .35s cubic-bezier(.32,.72,0,1);
+      padding-bottom:env(safe-area-inset-bottom, 0);
+    }
+    .sheet.open { transform:translateY(0); }
+
+    .sheet-handle {
+      width:40px; height:4px;
+      background:rgba(255,255,255,.15);
+      border-radius:2px;
+      margin:12px auto 16px;
+    }
+    .sheet-title {
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:22px; font-weight:700;
+      letter-spacing:2px;
+      padding:0 20px 16px;
+      border-bottom:1px solid rgba(0,180,216,.1);
+    }
+    .sheet-title span { color:var(--cyan); }
+
+    .cat-list { padding:12px 16px 20px; }
+
+    .cat-row {
+      display:flex; align-items:center; gap:14px;
+      padding:16px 16px;
+      border-radius:8px; cursor:pointer;
+      transition:background .15s;
+      margin-bottom:4px;
+    }
+    .cat-row:active { background:rgba(0,180,216,.08); }
+
+    .cat-row-icon {
+      font-size:28px; width:36px;
+      text-align:center; flex-shrink:0;
+    }
+    .cat-row-info { flex:1; }
+    .cat-row-name {
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:20px; font-weight:700;
+      color:var(--text-1);
+    }
+    .cat-row-desc {
+      font-size:12px; color:var(--text-2);
+      margin-top:1px;
+    }
+    .cat-row-arrow {
+      color:var(--text-2); font-size:18px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner"></div></div>
+
+<!-- Top bar -->
+<div class="top-bar">
+  <div class="top-bar-logo">NAUT<span class="accent">I</span>X</div>
+  <img class="user-avatar" id="user-avatar" src="" alt="" onclick="signOut()">
+</div>
+
+<!-- Main -->
+<div id="main">
+  <!-- Score display -->
+  <div class="header-section">
+    <div class="greeting" id="greeting">WELCOME BACK</div>
+    <div class="score-label">CHALLENGE POINTS</div>
+    <div class="score-big" id="score-big">5</div>
+    <div class="score-pts">PTS</div>
+    <div class="diff-label" id="diff-label">EASY</div>
+  </div>
+
+  <!-- Wheel -->
+  <div class="wheel-section" id="wheel-section">
+    <div class="wheel-outer" id="wheel-outer">
+      <div class="wheel-perspective">
+        <div class="wheel-drum" id="wheel-drum"></div>
+      </div>
+      <div class="wheel-bar"></div>
+      <div class="swipe-hint" id="swipe-hint">↕ SWIPE TO SET POINTS</div>
+    </div>
+  </div>
+
+  <!-- Play -->
+  <div class="play-section">
+    <button class="btn-play" onclick="openSheet()">
+      ▶ &nbsp;SELECT CATEGORY
+    </button>
+  </div>
+</div>
+
+<!-- Category sheet -->
+<div class="sheet-overlay" id="overlay" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Play for <span id="sheet-score">5</span> pts</div>
+  <div class="cat-list">
+    <div class="cat-row" onclick="startGame('navigation')">
+      <div class="cat-row-icon">🧭</div>
+      <div class="cat-row-info">
+        <div class="cat-row-name">Navigation</div>
+        <div class="cat-row-desc">COLREG, chartwork, celestial nav</div>
+      </div>
+      <div class="cat-row-arrow">›</div>
+    </div>
+    <div class="cat-row" onclick="startGame('engineering')">
+      <div class="cat-row-icon">⚙️</div>
+      <div class="cat-row-info">
+        <div class="cat-row-name">Engineering</div>
+        <div class="cat-row-desc">Diesel engines, pumps, systems</div>
+      </div>
+      <div class="cat-row-arrow">›</div>
+    </div>
+    <div class="cat-row" onclick="startGame('electrical')">
+      <div class="cat-row-icon">⚡</div>
+      <div class="cat-row-info">
+        <div class="cat-row-name">Electrical</div>
+        <div class="cat-row-desc">Power systems, automation, ETO</div>
+      </div>
+      <div class="cat-row-arrow">›</div>
+    </div>
+    <div class="cat-row" onclick="startGame('safety')">
+      <div class="cat-row-icon">🛡️</div>
+      <div class="cat-row-info">
+        <div class="cat-row-name">Safety</div>
+        <div class="cat-row-desc">SOLAS, MARPOL, ISM, fire</div>
+      </div>
+      <div class="cat-row-arrow">›</div>
+    </div>
+    <div class="cat-row" onclick="startGame('medical')">
+      <div class="cat-row-icon">🏥</div>
+      <div class="cat-row-info">
+        <div class="cat-row-name">Medical</div>
+        <div class="cat-row-desc">First aid, shipboard medicine</div>
+      </div>
+      <div class="cat-row-arrow">›</div>
+    </div>
+    <div class="cat-row" onclick="startGame('psc')">
+      <div class="cat-row-icon">🛂</div>
+      <div class="cat-row-info">
+        <div class="cat-row-name">PSC</div>
+        <div class="cat-row-desc">Port State Control, MOU, Paris</div>
+      </div>
+      <div class="cat-row-arrow">›</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+// ── Firebase ──
+const firebaseConfig = {
+  apiKey:            "AIzaSyCMxTMv0yWJHjbYndJpGiYnF6y9W19mpC0",
+  authDomain:        "nautix-3d62c.firebaseapp.com",
+  projectId:         "nautix-3d62c",
+  storageBucket:     "nautix-3d62c.firebasestorage.app",
+  messagingSenderId: "139539390330",
+  appId:             "1:139539390330:web:1239b101edb0a4ab4d40c3"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+auth.onAuthStateChanged((user) => {
+  document.getElementById('loading').style.display = 'none';
+  if (!user) { window.location.replace('index.html'); return; }
+  const name = user.displayName?.split(' ')[0] || 'Officer';
+  document.getElementById('greeting').textContent = `WELCOME, ${name.toUpperCase()}`;
+  if (user.photoURL) document.getElementById('user-avatar').src = user.photoURL;
+  document.getElementById('main').classList.add('visible');
+});
+
+function signOut() {
+  if (confirm('Sign out?')) auth.signOut().then(() => window.location.replace('index.html'));
+}
+
+// ── WHEEL ──
+const VALUES = [5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100];
+const N      = VALUES.length;  // 20
+const DEG    = 360 / N;        // 18 deg per item
+const H      = 56;             // item height px
+const R      = Math.round((H * N) / (2 * Math.PI)); // ~178px
+const SENS   = DEG / H;        // deg per pixel dragged (~0.32)
+
+let wheelAngle = 0;     // current rotation
+let raf        = null;
+let hintHidden = false;
+
+// Build drum items
+(function buildDrum() {
+  const drum = document.getElementById('wheel-drum');
+  VALUES.forEach((v, i) => {
+    const el = document.createElement('div');
+    el.className = 'wheel-item';
+    el.id = `wi-${i}`;
+    el.innerHTML = `${v}<span class="pts">PTS</span>`;
+    // Position on drum
+    const angleDeg = i * DEG;
+    el.style.transform = `rotateX(${angleDeg}deg) translateZ(${R}px)`;
+    drum.appendChild(el);
+  });
+})();
+
+function applyAngle(a) {
+  wheelAngle = a;
+  document.getElementById('wheel-drum').style.transform = `rotateX(${-a}deg)`;
+  updateUI();
+}
+
+function getIndex(a) {
+  return (Math.round(a / DEG) % N + N) % N;
+}
+
+function updateUI() {
+  const idx = getIndex(wheelAngle);
+  const val = VALUES[idx];
+
+  // Score big
+  document.getElementById('score-big').textContent = val;
+
+  // Difficulty
+  let diff, color;
+  if (val <= 30)       { diff = 'EASY';   color = '#06D6A0'; }
+  else if (val <= 65)  { diff = 'MEDIUM'; color = '#F4A261'; }
+  else                 { diff = 'HARD';   color = '#EF233C'; }
+  const dEl = document.getElementById('diff-label');
+  dEl.textContent = diff;
+  dEl.style.color  = color;
+
+  // Highlight active item
+  VALUES.forEach((_, i) => {
+    const el = document.getElementById(`wi-${i}`);
+    if (el) el.classList.toggle('active', i === idx);
+  });
+}
+
+// Snap to nearest
+function snap() {
+  const target = Math.round(wheelAngle / DEG) * DEG;
+  animateTo(target);
+}
+
+function animateTo(target) {
+  cancelAnimationFrame(raf);
+  const start = wheelAngle;
+  const delta = target - start;
+  const dur   = Math.min(400, Math.abs(delta) * 8);
+  const t0    = performance.now();
+
+  function frame(now) {
+    const p = Math.min(1, (now - t0) / dur);
+    const ease = 1 - Math.pow(1 - p, 3); // ease out cubic
+    applyAngle(start + delta * ease);
+    if (p < 1) raf = requestAnimationFrame(frame);
+  }
+  raf = requestAnimationFrame(frame);
+}
+
+// ── Touch events ──
+const wheelOuter = document.getElementById('wheel-outer');
+let touchStartY  = 0;
+let touchStartA  = 0;
+let lastTouchY   = 0;
+let lastTouchT   = 0;
+let touchVel     = 0;
+
+wheelOuter.addEventListener('touchstart', (e) => {
+  cancelAnimationFrame(raf);
+  touchStartY = e.touches[0].clientY;
+  touchStartA = wheelAngle;
+  lastTouchY  = touchStartY;
+  lastTouchT  = Date.now();
+  touchVel    = 0;
+  if (!hintHidden) {
+    document.getElementById('swipe-hint').classList.add('hidden');
+    hintHidden = true;
+  }
+}, { passive: true });
+
+wheelOuter.addEventListener('touchmove', (e) => {
+  const y   = e.touches[0].clientY;
+  const dy  = y - touchStartY;
+  const now = Date.now();
+  const dt  = now - lastTouchT || 1;
+  touchVel  = (y - lastTouchY) / dt;
+  lastTouchY = y;
+  lastTouchT = now;
+  applyAngle(touchStartA - dy * SENS);
+}, { passive: true });
+
+wheelOuter.addEventListener('touchend', () => {
+  // Momentum
+  let v = -touchVel * 18;
+  const friction = 0.88;
+  cancelAnimationFrame(raf);
+
+  function momentum() {
+    v *= friction;
+    wheelAngle += v;
+    applyAngle(wheelAngle);
+    if (Math.abs(v) > 0.15) {
+      raf = requestAnimationFrame(momentum);
+    } else {
+      snap();
+    }
+  }
+  if (Math.abs(v) > 0.3) {
+    raf = requestAnimationFrame(momentum);
+  } else {
+    snap();
+  }
+});
+
+// Mouse drag (desktop test)
+let mouseDown = false;
+let mouseStartY = 0;
+let mouseStartA = 0;
+
+wheelOuter.addEventListener('mousedown', (e) => {
+  cancelAnimationFrame(raf);
+  mouseDown   = true;
+  mouseStartY = e.clientY;
+  mouseStartA = wheelAngle;
+});
+window.addEventListener('mousemove', (e) => {
+  if (!mouseDown) return;
+  applyAngle(mouseStartA - (e.clientY - mouseStartY) * SENS);
+});
+window.addEventListener('mouseup', () => {
+  if (!mouseDown) return;
+  mouseDown = false;
+  snap();
+});
+
+// ── Category sheet ──
+function openSheet() {
+  const idx = getIndex(wheelAngle);
+  document.getElementById('sheet-score').textContent = VALUES[idx];
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('sheet').classList.add('open');
+}
+function closeSheet() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('sheet').classList.remove('open');
+}
+
+function startGame(category) {
+  const idx = getIndex(wheelAngle);
+  const pts = VALUES[idx];
+  closeSheet();
+  window.location.href = `game.html?category=${category}&points=${pts}`;
+}
+
+// Init UI
+updateUI();
+</script>
+</body>
+</html>
